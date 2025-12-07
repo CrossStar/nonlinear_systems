@@ -10,7 +10,6 @@ from typing import Literal, Dict, Tuple, List
 class Student:
     coord: tuple
     status: Literal[0, 1]
-    original_volume: float
     sensitivity: float
 
     # 模型参数字段
@@ -25,7 +24,7 @@ class Student:
 
     @property
     def ref_volume(self) -> float:
-        return self.status * self.original_volume
+        return self.status * self.target_volume
 
 
 # --- 辅助逻辑函数 ---
@@ -70,7 +69,7 @@ def update_student_volume(
 
     prev_neighbor_avg = student.prev_neighbor_avg_volume
     delta_e = current_neighbor_avg_volume - prev_neighbor_avg
-    current_vol = student.original_volume
+    current_vol = student.target_volume
 
     # 规则应用
     if current_vol <= student.epsilon:
@@ -107,7 +106,7 @@ def update_single_step(student: Student, students_map: dict, p_on: float, p_off:
 
     return {
         "new_status": new_status,
-        "new_original_volume": new_volume,
+        "new_target_volume": new_volume,
         "new_prev_neighbor_avg_volume": current_neighbor_avg,
     }
 
@@ -136,7 +135,6 @@ def run_simulation(params: dict) -> pd.DataFrame:
             students_map[coord] = Student(
                 coord=coord,
                 status=1,  # 默认初始活跃
-                original_volume=np.random.uniform(0.5, 1.0),
                 sensitivity=1.0,
                 alpha=params["alpha"],
                 beta=params["beta"],
@@ -163,7 +161,7 @@ def run_simulation(params: dict) -> pd.DataFrame:
         for coord, info in updates.items():
             student = students_map[coord]
             student.status = info["new_status"]
-            student.original_volume = info["new_original_volume"]
+            student.target_volume = info["new_target_volume"]
             student.prev_neighbor_avg_volume = info["new_prev_neighbor_avg_volume"]
 
         # --- 阶段 3: 记录数据 ---
@@ -173,7 +171,7 @@ def run_simulation(params: dict) -> pd.DataFrame:
                     "time_step": t,
                     "coord": student.coord,
                     "status": student.status,
-                    "original_volume": student.original_volume,
+                    "target_volume": student.target_volume,
                     "ref_volume": student.ref_volume,
                 }
             )

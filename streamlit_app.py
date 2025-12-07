@@ -78,7 +78,7 @@ def plot_frame(current_data, sim_params):
     for _, row in current_data.iterrows():
         coord = row["coord"]
         status = row["status"]
-        vol = row["original_volume"]
+        vol = row["target_volume"]
 
         # 颜色：红(Active) / 蓝(Quiet)
         color = "#e76f51" if status == 1 else "#00b4d8"
