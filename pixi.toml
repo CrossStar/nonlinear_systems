@@ -1,0 +1,18 @@
+[workspace]
+authors = ["Sydney <1607170145@qq.com>"]
+channels = ["conda-forge"]
+name = "非线性系统"
+platforms = ["win-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+numpy = ">=2.3.5,<3"
+pandas = ">=2.3.3,<3"
+matplotlib = ">=3.10.8,<4"
+scipy = ">=1.16.3,<2"
+ipykernel = ">=7.1.0,<8"
+pip = ">=25.3,<26"
+rich = ">=14.2.0,<15"
+streamlit = ">=1.52.1,<2"
