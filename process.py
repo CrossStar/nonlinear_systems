@@ -78,9 +78,9 @@ def update_student_volume(
     elif delta_e < -student.theta and current_vol > student.epsilon:
         # 突然安静
         return student.gamma * current_vol
-    elif delta_e >= -student.theta and current_vol > student.epsilon:
+    elif delta_e >= -student.theta:
         # 常规调节
-        imitation = student.alpha * (student.target_volume - current_vol)
+        imitation = student.alpha * (current_neighbor_avg_volume - current_vol)
         self_drive = student.beta * (student.target_volume - current_vol)
         return current_vol + imitation + self_drive
 
