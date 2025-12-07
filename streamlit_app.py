@@ -2,17 +2,13 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import time
-import process  # 导入后端计算模块
+import process
 
-# 设置页面配置
 st.set_page_config(page_title="教室音量元胞自动机", layout="wide")
 
 st.title("🔇 教室音量演化模拟器")
-st.markdown("基于元胞自动机 (CA) 模拟学生在不同社交压力下的音量变化。")
+st.markdown("基于元胞自动机模拟学生在不同社交压力下的音量变化。")
 
-# ==========================================
-# 1. 侧边栏：参数配置
-# ==========================================
 st.sidebar.header("⚙️ 模拟参数设置")
 
 with st.sidebar.form("simulation_params"):
@@ -41,9 +37,6 @@ with st.sidebar.form("simulation_params"):
 
     submitted = st.form_submit_button("🚀 开始模拟")
 
-# ==========================================
-# 2. 运行模拟逻辑
-# ==========================================
 if submitted:
     params = {
         "row_num": row_num,
@@ -67,9 +60,6 @@ if submitted:
     st.success(f"模拟完成！共生成 {len(df_result)} 条状态记录。")
 
 
-# ==========================================
-# 3. 绘图封装函数 (为了复用)
-# ==========================================
 def plot_frame(current_data, sim_params):
     """绘制单个时间步的图像，返回 fig 对象"""
     fig, ax = plt.subplots(figsize=(6, 6))
@@ -108,31 +98,23 @@ def plot_frame(current_data, sim_params):
     return fig
 
 
-# ==========================================
-# 4. 结果可视化界面
-# ==========================================
 if "df_result" in st.session_state:
     df = st.session_state["df_result"]
     sim_params = st.session_state["params"]
 
     st.divider()
 
-    # 布局
     col_control, col_display = st.columns([1, 2])
 
-    # --- 左侧：控制区 ---
     with col_control:
         st.subheader("🎥 播放控制")
 
-        # 播放速度控制
         speed = st.slider("播放速度 (帧间隔秒数)", 0.01, 1.0, 0.1)
 
-        # 播放按钮
         start_btn = st.button("▶️ 自动播放所有帧")
 
         st.markdown("---")
         st.subheader("⏱️ 手动查看")
-        # 手动滑块 (如果正在自动播放，这个滑块不会动，但不影响程序运行)
         manual_step = st.slider(
             "手动选择时间步",
             min_value=0,
@@ -140,63 +122,45 @@ if "df_result" in st.session_state:
             value=0,
         )
 
-        # 统计数据显示
-        # 这里的逻辑是：如果是点击了播放，我们在循环里更新统计；
-        # 如果没播放，我们显示 manual_step 的统计。
-        # 为了简单，我们在下方统一处理统计数据的占位符。
         stats_placeholder = st.empty()
 
-    # --- 右侧：绘图区 ---
     with col_display:
         st.subheader("📊 教室状态热力图")
-        # 创建一个空容器，用于动态放置图表
         chart_placeholder = st.empty()
 
-    # ==========================================
-    # 5. 渲染逻辑 (自动播放 vs 手动)
-    # ==========================================
-
     if start_btn:
-        # --- 自动播放模式 ---
         progress_bar = st.progress(0)
         total_steps = sim_params["time_steps"]
 
         for t in range(total_steps):
-            # 1. 获取数据
             current_data = df[df["time_step"] == t]
 
-            # 2. 绘制并放入占位符
             fig = plot_frame(current_data, sim_params)
             chart_placeholder.pyplot(fig)
-            plt.close(fig)  # 重要：关闭图形释放内存
+            plt.close(fig)
 
-            # 3. 更新统计信息占位符
             active_count = current_data["status"].sum()
             avg_volume = current_data["ref_volume"].mean()
             stats_placeholder.markdown(
                 f"""
-                **当前时间步:** {t}  
-                **活跃人数:** {active_count}  
+                **当前时间步:** {t}
+                **活跃人数:** {active_count}
                 **平均音量:** {avg_volume:.3f}
                 """
             )
 
-            # 4. 更新进度条和休眠
             progress_bar.progress((t + 1) / total_steps)
             time.sleep(speed)
 
         st.success("播放结束")
 
     else:
-        # --- 手动模式 (默认) ---
         t = manual_step
         current_data = df[df["time_step"] == t]
 
-        # 1. 绘图
         fig = plot_frame(current_data, sim_params)
         chart_placeholder.pyplot(fig)  # 放入同一个占位符
 
-        # 2. 统计
         active_count = current_data["status"].sum()
         avg_volume = current_data["ref_volume"].mean()
         stats_placeholder.markdown(
@@ -207,7 +171,6 @@ if "df_result" in st.session_state:
             """
         )
 
-    # --- 底部全局趋势图 ---
     st.divider()
     st.subheader("📈 全局趋势分析")
     stats_df = (
