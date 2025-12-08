@@ -1,64 +1,64 @@
-# process.py
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
-from typing import Literal, Dict, Tuple, List
+from dataclasses import dataclass, replace
+from typing import Literal, Dict, Tuple
 
 
-# --- 数据类定义 ---
 @dataclass
 class Student:
-    coord: tuple
+    coord: Tuple[int, int]
     status: Literal[0, 1]
     sensitivity: float
-
-    # 模型参数字段
-    alpha: float
-    beta: float
-    gamma: float
-    lambda_rate: float
-    theta: float
-    epsilon: float
-    target_volume: float
+    target_volume: float = 0.0
+    target_ref_volume: float = 2.0
     prev_neighbor_avg_volume: float = 0.0
+    alpha: float = 0.5
+    beta: float = 0.5
+    gamma: float = 0.5
+    lambda_rate: float = 0.1
+    epsilon: float = 0.1
+    theta_0: float = 1.0
 
     @property
-    def ref_volume(self) -> float:
-        return self.status * self.target_volume
+    def actual_volume(self) -> float:
+        return float(self.status) * float(self.target_volume)
 
-
-# --- 辅助逻辑函数 ---
+    @property
+    def theta(self) -> float:
+        return self.sensitivity * self.theta_0
 
 
 def on_off_model(student: Student, p_on: float, p_off: float) -> Literal[0, 1]:
-    rand_num = np.random.rand()
+    r = np.random.rand()
     if student.status == 0:
-        return 0 if rand_num < p_off else 1
-    elif student.status == 1:
-        return 1 if rand_num < p_on else 0
+        return 0 if r < p_off else 1
+    if student.status == 1:
+        return 1 if r < p_on else 0
     return 1 - student.status
 
 
 def get_neighbors_volume(
     student: Student, students_map: Dict[Tuple[int, int], Student]
 ) -> float:
-    neighbor_coords = [
-        (student.coord[0] - 1, student.coord[1] - 1),
-        (student.coord[0] - 1, student.coord[1]),
-        (student.coord[0] - 1, student.coord[1] + 1),
-        (student.coord[0], student.coord[1] - 1),
-        (student.coord[0], student.coord[1] + 1),
-        (student.coord[0] + 1, student.coord[1] - 1),
-        (student.coord[0] + 1, student.coord[1]),
-        (student.coord[0] + 1, student.coord[1] + 1),
-    ]
-    total_volume = 0.0
+    x, y = student.coord
+    neighbors = (
+        (x - 1, y - 1),
+        (x - 1, y),
+        (x - 1, y + 1),
+        (x, y - 1),
+        (x, y + 1),
+        (x + 1, y - 1),
+        (x + 1, y),
+        (x + 1, y + 1),
+    )
+    total = 0.0
     count = 0
-    for coord in neighbor_coords:
-        if coord in students_map:
-            total_volume += students_map[coord].ref_volume
+    for coord in neighbors:
+        s = students_map.get(coord)
+        if s is not None:
+            total += s.actual_volume
             count += 1
-    return total_volume / count if count > 0 else 0.0
+    return total / count if count else 0.0
 
 
 def update_student_volume(
@@ -67,113 +67,92 @@ def update_student_volume(
     if student.status == 0:
         return 0.0
 
-    prev_neighbor_avg = student.prev_neighbor_avg_volume
-    delta_e = current_neighbor_avg_volume - prev_neighbor_avg
-    current_vol = student.target_volume
+    prev = student.prev_neighbor_avg_volume
+    delta_e = current_neighbor_avg_volume - prev
+    cur = student.target_volume
 
-    # 规则应用
-    if current_vol <= student.epsilon:
-        # 恢复阶段
-        return current_vol + student.lambda_rate * (student.target_volume - current_vol)
-    elif delta_e < -student.theta and current_vol > student.epsilon:
-        # 突然安静
-        return student.gamma * current_vol
-    elif delta_e >= -student.theta:
-        # 常规调节
-        imitation = student.alpha * (current_neighbor_avg_volume - current_vol)
-        self_drive = student.beta * (student.target_volume - current_vol)
-        return current_vol + imitation + self_drive
+    if delta_e >= -student.theta and cur > student.epsilon:
+        return (
+            cur
+            + student.alpha * (current_neighbor_avg_volume - cur)
+            + student.beta * (student.target_ref_volume - cur)
+        )
 
-    return current_vol
+    if delta_e <= -student.theta:
+        return student.gamma * cur
+
+    if delta_e >= -student.theta and cur <= student.epsilon:
+        return cur + student.lambda_rate * (student.target_ref_volume - cur)
+
+    return student.target_volume
 
 
-def update_single_step(student: Student, students_map: dict, p_on: float, p_off: float):
-    """计算单个学生的下一步状态，返回更新字典"""
-    # 1. 计算新状态
+def update_student_state(
+    student: Student,
+    students_map: Dict[Tuple[int, int], Student],
+    p_on: float,
+    p_off: float,
+):
     new_status = on_off_model(student, p_on, p_off)
-
-    # 2. 获取当前邻居音量 (这将成为下一刻的历史值)
     current_neighbor_avg = get_neighbors_volume(student, students_map)
-
-    # 3. 计算新音量 (使用假想的新状态进行计算)
-    temp_student = student
-    original_status = student.status
-    temp_student.status = new_status  # 临时修改以计算体积
-
-    new_volume = update_student_volume(temp_student, current_neighbor_avg)
-
-    temp_student.status = original_status  # 恢复
-
+    hypothetical = replace(student, status=new_status)
+    new_volume = update_student_volume(hypothetical, current_neighbor_avg)
     return {
-        "new_status": new_status,
-        "new_target_volume": new_volume,
-        "new_prev_neighbor_avg_volume": current_neighbor_avg,
+        "new_status": int(new_status),
+        "new_target_volume": float(new_volume),
+        "new_prev_neighbor_avg_volume": float(current_neighbor_avg),
     }
 
 
-# --- 主模拟函数 ---
-
-
 def run_simulation(params: dict) -> pd.DataFrame:
-    """
-    接收参数字典，运行模拟，返回 DataFrame
-    params 包含: row_num, col_num, time_steps, p_on, p_off,
-                 alpha, beta, gamma, lambda, theta, epsilon, seed
-    """
-    # 设置随机种子
     if params.get("seed") is not None:
         np.random.seed(params["seed"])
 
-    row_num = params["row_num"]
-    col_num = params["col_num"]
+    rows = int(params["row_num"])
+    cols = int(params["col_num"])
+    time_steps = int(params["time_steps"])
+    p_on = float(params["p_on"])
+    p_off = float(params["p_off"])
 
-    # 1. 初始化学生
-    students_map = {}
-    for i in range(row_num):
-        for j in range(col_num):
-            coord = (i, j)
-            students_map[coord] = Student(
-                coord=coord,
-                status=1,  # 默认初始活跃
+    students_map: Dict[Tuple[int, int], Student] = {}
+    for i in range(rows):
+        for j in range(cols):
+            students_map[(i, j)] = Student(
+                coord=(i, j),
+                status=1,
                 sensitivity=1.0,
-                alpha=params["alpha"],
-                beta=params["beta"],
-                gamma=params["gamma"],
-                lambda_rate=params["lambda_rate"],
-                theta=params["theta"],
-                epsilon=params["epsilon"],
-                target_volume=1.0,  # 默认目标音量
+                alpha=float(params["alpha"]),
+                beta=float(params["beta"]),
+                gamma=float(params["gamma"]),
+                lambda_rate=float(params["lambda_rate"]),
+                epsilon=float(params["epsilon"]),
+                theta_0=float(params["theta_0"]),
+                target_ref_volume=float(params["target_ref_volume"]),
+                target_volume=1.0,
                 prev_neighbor_avg_volume=0.0,
             )
 
-    all_history = []
-
-    # 2. 时间步循环
-    for t in range(params["time_steps"]):
-        # --- 阶段 1: 计算所有更新 ---
+    history = []
+    for t in range(time_steps):
         updates = {}
         for coord, student in students_map.items():
-            updates[coord] = update_single_step(
-                student, students_map, params["p_on"], params["p_off"]
-            )
+            updates[coord] = update_student_state(student, students_map, p_on, p_off)
 
-        # --- 阶段 2: 应用更新 ---
         for coord, info in updates.items():
-            student = students_map[coord]
-            student.status = info["new_status"]
-            student.target_volume = info["new_target_volume"]
-            student.prev_neighbor_avg_volume = info["new_prev_neighbor_avg_volume"]
+            s = students_map[coord]
+            s.status = info["new_status"]
+            s.target_volume = info["new_target_volume"]
+            s.prev_neighbor_avg_volume = info["new_prev_neighbor_avg_volume"]
 
-        # --- 阶段 3: 记录数据 ---
-        for student in students_map.values():
-            all_history.append(
+        for s in students_map.values():
+            history.append(
                 {
                     "time_step": t,
-                    "coord": student.coord,
-                    "status": student.status,
-                    "target_volume": student.target_volume,
-                    "ref_volume": student.ref_volume,
+                    "coord": s.coord,
+                    "status": int(s.status),
+                    "target_volume": float(s.target_volume),
+                    "actual_volume": float(s.actual_volume),
                 }
             )
 
-    return pd.DataFrame(all_history)
+    return pd.DataFrame(history)

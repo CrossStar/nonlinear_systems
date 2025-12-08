@@ -16,3 +16,8 @@ ipykernel = ">=7.1.0,<8"
 pip = ">=25.3,<26"
 rich = ">=14.2.0,<15"
 streamlit = ">=1.52.1,<2"
+
+[pypi-dependencies]
+streamlit-autorefresh = ">=1.0.1, <2"
+fastapi = ">=0.124.0, <0.125"
+uvicorn = ">=0.38.0, <0.39"
