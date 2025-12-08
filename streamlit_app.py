@@ -202,7 +202,7 @@ if start_btn:
     }
 
 # === Main Layout ===
-st.title("🌊 信号交互模拟器")
+st.title("基于元胞自动机的教室声音模拟系统")
 
 col_left, col_right = st.columns([1, 1.2], gap="large")
 
