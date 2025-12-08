@@ -39,25 +39,26 @@ def on_off_model(student: Student, p_on: float, p_off: float) -> Literal[0, 1]:
 
 
 def get_neighbors_volume(
-    student: Student, students_map: Dict[Tuple[int, int], Student]
+    student: Student, students_map: Dict[Tuple[int, int], Student], R: int = 1
 ) -> float:
-    neighbor_coords = [
-        (student.coord[0] - 1, student.coord[1] - 1),
-        (student.coord[0] - 1, student.coord[1]),
-        (student.coord[0] - 1, student.coord[1] + 1),
-        (student.coord[0], student.coord[1] - 1),
-        (student.coord[0], student.coord[1] + 1),
-        (student.coord[0] + 1, student.coord[1] - 1),
-        (student.coord[0] + 1, student.coord[1]),
-        (student.coord[0] + 1, student.coord[1] + 1),
-    ]
-    total_volume = 0.0
+    x, y = student.coord
+
+    total = 0.0
     count = 0
-    for coord in neighbor_coords:
-        if coord in students_map:
-            total_volume += students_map[coord].actual_volume
-            count += 1
-    return total_volume / count if count > 0 else 0.0
+
+    for dx in range(-R, R + 1):
+        for dy in range(-R, R + 1):
+            # 跳过自己
+            if dx == 0 and dy == 0:
+                continue
+
+            coord = (x + dx, y + dy)
+            s = students_map.get(coord)
+            if s is not None:
+                total += s.actual_volume
+                count += 1
+
+    return total / count if count else 0.0
 
 
 def update_student_volume(
@@ -83,9 +84,9 @@ def update_student_volume(
     return student.target_volume
 
 
-def update_student_state(student, students_map, p_on, p_off):
+def update_student_state(student, students_map, p_on, p_off, R):
     new_status = on_off_model(student, p_on, p_off)
-    current_neighbor_avg_volume = get_neighbors_volume(student, students_map)
+    current_neighbor_avg_volume = get_neighbors_volume(student, students_map, R)
     temp_student = student
     temp_student.status = new_status
     new_volume = update_student_volume(temp_student, current_neighbor_avg_volume)
@@ -127,7 +128,7 @@ def run_simulation(params: dict) -> pd.DataFrame:
         updates = {}
         for coord, student in students_map.items():
             updates[coord] = update_student_state(
-                student, students_map, params["p_on"], params["p_off"]
+                student, students_map, params["p_on"], params["p_off"], params["R"]
             )
         for coord, info in updates.items():
             student = students_map[coord]

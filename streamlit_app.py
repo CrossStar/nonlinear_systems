@@ -17,12 +17,13 @@ st.sidebar.header("⚙️ 模拟参数设置")
 with st.sidebar.form("simulation_params"):
     st.subheader("1. 基础设置")
     col1, col2 = st.columns(2)
-    row_num = col1.number_input("行数 (Rows)", min_value=3, max_value=20, value=6)
-    col_num = col2.number_input("列数 (Cols)", min_value=3, max_value=20, value=6)
+    row_num = col1.number_input("行数 (Rows)", min_value=3, max_value=20, value=10)
+    col_num = col2.number_input("列数 (Cols)", min_value=3, max_value=20, value=10)
     time_steps = st.number_input(
         "模拟步数 (Time Steps)", min_value=10, max_value=500, value=50
     )
     seed = st.number_input("随机种子 (Seed)", min_value=0, value=42)
+    R = st.number_input("邻居影响半径 (R)", min_value=1, max_value=10, value=4)
 
     st.subheader("2. 状态转移概率")
     p_on = st.slider(r"$P_{\text{on}}$ (保持活跃概率)", 0.0, 1.0, 0.3)
@@ -36,7 +37,7 @@ with st.sidebar.form("simulation_params"):
 
     st.subheader("4. 阈值设定")
     theta_0 = st.slider(r"$\theta$ (环境突降阈值)", 0.0, 1.0, 0.2)
-    epsilon = st.slider(r"$\epsilon$ (静音阈值)", 0.0, 0.5, 0.1)
+    epsilon = st.slider(r"$\varepsilon$ (静音阈值)", 0.0, 0.5, 0.1)
     submitted = st.form_submit_button("🚀 开始模拟")
 
 
@@ -85,6 +86,7 @@ if submitted:
         "lambda_rate": lambda_rate,
         "theta_0": theta_0,
         "epsilon": epsilon,
+        "R": R,
     }
     with st.spinner("正在运行模拟运算..."):
         st.session_state["df_result"] = run_simulation(st.session_state["params"])
