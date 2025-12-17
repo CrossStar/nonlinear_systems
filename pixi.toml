@@ -12,15 +12,8 @@ python = "==3.13.9"
 
 
 [pypi-dependencies]
-fastapi = ">=0.124.0, <0.125"
-uvicorn = ">=0.38.0, <0.39"
-ipywidgets = ">=8.1.8, <9"
-numpy = ">=2.3.5,<3"
-pandas = ">=2.3.3,<3"
-scipy = ">=1.16.3,<2"
-ipykernel = ">=7.1.0,<8"
-pip = ">=25.3,<26"
-rich = ">=14.2.0,<15"
-streamlit = ">=1.52.1,<2"
-tqdm = ">=4.67.1,<5"
-matplotlib = ">=3.10.7, <4"
+matplotlib = ">=3.10.8, <4"
+numpy = ">=2.3.5, <3"
+pandas = ">=2.3.3, <3"
+streamlit = ">=1.52.1, <2"
+
